@@ -1,0 +1,24 @@
+# Dart / Pub
+.dart_tool/
+.packages
+build/
+doc/api/
+
+# pub global activate cache (not for library packages, but safe to ignore locally)
+.pub-cache/
+
+# Coverage
+coverage/
+lcov.info
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Compiled snapshots / native builds
+*.snapshot
+*.aot
