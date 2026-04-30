@@ -1,0 +1,61 @@
+// Sample .code-workspace fixture for tests.
+// This file intentionally uses JSONC (JSON with comments).
+{
+  // Workspace folders
+  "folders": [
+    {
+      "name": "🇨🇴 🟢 App Alpha",
+      "path": "apps/app_alpha"
+    },
+    {
+      /* Argentina store */
+      "name": "🇦🇷 🟢 App Beta",
+      "path": "apps/app_beta"
+    },
+    {
+      "name": "shared",
+      "path": "packages/shared"
+    }
+  ],
+  "launch": {
+    "configurations": [
+      {
+        "type": "dart",
+        "request": "launch",
+        "name": "app_alpha STG",
+        "program": "lib/main.dart",
+        "cwd": "${workspaceFolder:🇨🇴 🟢 App Alpha}",
+        "args": [
+          "--flavor", "dev",
+          "--dart-define-from-file", "env/development.env.json"
+        ]
+      },
+      {
+        "type": "dart",
+        "request": "launch",
+        "name": "app_alpha PROD",
+        "program": "lib/main.dart",
+        "cwd": "${workspaceFolder:🇨🇴 🟢 App Alpha}",
+        "args": [
+          "--flavor", "prod",
+          "--dart-define-from-file", "env/production.env.json"
+        ]
+      },
+      // Argentina
+      {
+        "type": "dart",
+        "request": "launch",
+        "name": "app_beta STG",
+        "program": "lib/main.dart",
+        "cwd": "${workspaceFolder:🇦🇷 🟢 App Beta}",
+        "args": ["--flavor", "dev"]
+      },
+      {
+        "type": "dart",
+        "request": "launch",
+        // widgetbook has no cwd or args
+        "name": "widgetbook"
+      }
+    ]
+  }
+}
