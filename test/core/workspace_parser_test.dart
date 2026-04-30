@@ -48,8 +48,8 @@ void main() {
 
     test('parses folder names correctly', () {
       expect(workspace.folders.map((f) => f.name), containsAll([
-        '🇨🇴 🟢 App Alpha',
-        '🇦🇷 🟢 App Beta',
+        '🇺🇸 🟢 App Alpha',
+        '🇬🇧 🟢 App Beta',
         'shared',
       ]));
     });
@@ -73,7 +73,7 @@ void main() {
     test('parses config cwd with workspaceFolder variable', () {
       expect(
         workspace.configs.first.cwd,
-        equals(r'${workspaceFolder:🇨🇴 🟢 App Alpha}'),
+        equals(r'${workspaceFolder:🇺🇸 🟢 App Alpha}'),
       );
     });
 

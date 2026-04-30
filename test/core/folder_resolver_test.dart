@@ -21,7 +21,7 @@ void main() {
 
   group('FolderResolver.resolve', () {
     test('resolves known workspaceFolder variable to absolute path', () {
-      final input = r'${workspaceFolder:🇨🇴 🟢 App Alpha}';
+      final input = r'${workspaceFolder:🇺🇸 🟢 App Alpha}';
       final result = resolver.resolve(input);
       expect(p.isAbsolute(result), isTrue);
       expect(result, endsWith(p.join('apps', 'app_alpha')));
@@ -41,7 +41,7 @@ void main() {
 
     test('resolves multiple variables in one string', () {
       final input =
-          r'${workspaceFolder:🇨🇴 🟢 App Alpha}/extra:${workspaceFolder:shared}';
+          r'${workspaceFolder:🇺🇸 🟢 App Alpha}/extra:${workspaceFolder:shared}';
       final result = resolver.resolve(input);
       expect(result, contains('app_alpha'));
       expect(result, contains('packages/shared'));
@@ -56,7 +56,7 @@ void main() {
 
     test('resolves cwd with workspaceFolder variable', () {
       final result = resolver.resolveCwd(
-          r'${workspaceFolder:🇦🇷 🟢 App Beta}');
+          r'${workspaceFolder:🇬🇧 🟢 App Beta}');
       expect(p.isAbsolute(result), isTrue);
       expect(result, contains('app_beta'));
     });

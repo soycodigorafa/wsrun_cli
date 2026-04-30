@@ -60,16 +60,16 @@ wsrun --workspace path/to.code-workspace      # explicit workspace file path
 ├─────────────────────────────────────────────────────────────────┤
 │  🔍  type to filter...                                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  ❯ 🇨🇴🟢🧪  app_alpha STG                                      │
-│    🇨🇴🟢🚀  app_alpha PROD                                      │
-│    🇦🇷🟢🧪  app_beta STG                                       │
-│    🇦🇷🟢🚀  app_beta PROD                                      │
-│    🇦🇷🔴🧪  app_delta STG                                       │
-│    🇦🇷🔴🚀  app_delta PROD                                      │
-│    🇧🇷🔵🧪  app_gamma STG                                    │
-│    🇧🇷🔵🚀  app_gamma PROD                                   │
-│    🇺🇸🟢🧪  app_epsilon STG                                 │
-│    🇺🇸🟢🚀  app_epsilon PROD                                │
+│  ❯ 🇺🇸🟢🧪  app_alpha STG                                      │
+│    🇺🇸🟢🚀  app_alpha PROD                                      │
+│    🇬🇧🟢🧪  app_beta STG                                        │
+│    🇬🇧🟢🚀  app_beta PROD                                       │
+│    🇬🇧🔴🧪  app_delta STG                                       │
+│    🇬🇧🔴🚀  app_delta PROD                                      │
+│    🇩🇪🔵🧪  app_gamma STG                                       │
+│    🇩🇪🔵🚀  app_gamma PROD                                      │
+│    🇫🇷🟢🧪  app_epsilon STG                                     │
+│    🇫🇷🟢🚀  app_epsilon PROD                                    │
 │    👨🏼‍🎨       widgetbook                                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  ↑↓ navigate   / filter   ENTER run   A attach   Q quit        │
@@ -81,7 +81,7 @@ wsrun --workspace path/to.code-workspace      # explicit workspace file path
 After selecting a config and pressing ENTER:
 
 ```
-┌─ 🇨🇴🟢🧪 app_alpha STG ─────────────────── ● RUNNING ──────────┐
+┌─ 🇺🇸🟢🧪 app_alpha STG ─────────────────── ● RUNNING ──────────┐
 │  flutter run lib/main.dart --flavor dev --dart-define-from-file  │
 │  env/development.env.json                                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -102,7 +102,7 @@ After selecting a config and pressing ENTER:
 │  Scanning for running Flutter processes...                       │
 ├─────────────────────────────────────────────────────────────────┤
 │  ❯ app_alpha  │  iPhone 15 Pro  │  vm://127.0.0.1:12345/ws      │
-│    app_beta  │  Android Pixel  │  vm://127.0.0.1:12346/ws      │
+│    app_beta   │  Android Pixel  │  vm://127.0.0.1:12346/ws      │
 ├─────────────────────────────────────────────────────────────────┤
 │  ↑↓ navigate   ENTER attach   Q quit                            │
 └─────────────────────────────────────────────────────────────────┘
@@ -142,9 +142,9 @@ After selecting a config and pressing ENTER:
 
 Example:
 ```json
-"folders": [{ "name": "🇨🇴 🟢 App Alpha", "path": "apps/app_alpha" }]
+"folders": [{ "name": "🇺🇸 🟢 App Alpha", "path": "apps/app_alpha" }]
 
-"cwd": "${workspaceFolder:🇨🇴 🟢 App Alpha}"
+"cwd": "${workspaceFolder:🇺🇸 🟢 App Alpha}"
 → resolves to: /absolute/path/to/monorepo/apps/app_alpha
 ```
 

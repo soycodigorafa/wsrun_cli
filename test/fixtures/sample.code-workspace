@@ -4,12 +4,12 @@
   // Workspace folders
   "folders": [
     {
-      "name": "🇨🇴 🟢 App Alpha",
+      "name": "🇺🇸 🟢 App Alpha",
       "path": "apps/app_alpha"
     },
     {
-      /* Argentina store */
-      "name": "🇦🇷 🟢 App Beta",
+      /* Second store */
+      "name": "🇬🇧 🟢 App Beta",
       "path": "apps/app_beta"
     },
     {
@@ -24,7 +24,7 @@
         "request": "launch",
         "name": "app_alpha STG",
         "program": "lib/main.dart",
-        "cwd": "${workspaceFolder:🇨🇴 🟢 App Alpha}",
+        "cwd": "${workspaceFolder:🇺🇸 🟢 App Alpha}",
         "args": [
           "--flavor", "dev",
           "--dart-define-from-file", "env/development.env.json"
@@ -35,7 +35,7 @@
         "request": "launch",
         "name": "app_alpha PROD",
         "program": "lib/main.dart",
-        "cwd": "${workspaceFolder:🇨🇴 🟢 App Alpha}",
+        "cwd": "${workspaceFolder:🇺🇸 🟢 App Alpha}",
         "args": [
           "--flavor", "prod",
           "--dart-define-from-file", "env/production.env.json"
@@ -47,7 +47,7 @@
         "request": "launch",
         "name": "app_beta STG",
         "program": "lib/main.dart",
-        "cwd": "${workspaceFolder:🇦🇷 🟢 App Beta}",
+        "cwd": "${workspaceFolder:🇬🇧 🟢 App Beta}",
         "args": ["--flavor", "dev"]
       },
       {
