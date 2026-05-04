@@ -82,6 +82,14 @@ class _RunningScreenState extends State<RunningScreen> {
     });
   }
 
+  void _log(String message) {
+    if (!mounted) return;
+    setState(() {
+      _lines.add(TuiLogLine.system('▶ $message'));
+      if (_lines.length > _maxLines) _lines.removeAt(0);
+    });
+  }
+
   @override
   void dispose() {
     _logSub?.cancel();
@@ -98,23 +106,27 @@ class _RunningScreenState extends State<RunningScreen> {
       focused: true,
       onKeyEvent: (event) {
         final char = event.character;
-        if (char == 'r') { component.onSendKey('r'); return true; }
-        if (char == 'R') { component.onSendKey('R'); return true; }
-        if (char == 's') { component.onSendKey('s'); return true; }
-        if (char == 'p') { component.onSendKey('p'); return true; }
+        if (char == 'r') { _log('Hot reload…'); component.onSendKey('r'); return true; }
+        if (char == 'R') { _log('Hot restart…'); component.onSendKey('R'); return true; }
+        if (char == 's') { _log('Taking screenshot…'); component.onSendKey('s'); return true; }
+        if (char == 'p') { _log('Toggling performance overlay…'); component.onSendKey('p'); return true; }
         if (char == 'd' && _urls.devToolsUrl != null) {
+          _log('Opening DevTools in browser…');
           component.onOpenUrl(_urls.devToolsUrl!);
           return true;
         }
         if (char == 'b' && _urls.webUrl != null) {
+          _log('Opening web app in browser…');
           component.onOpenUrl(_urls.webUrl!);
           return true;
         }
         if (char == 'q') {
+          _log('Stopping app…');
           component.onStop().then((_) { if (mounted) component.onBack(); });
           return true;
         }
         if (char == 'Q') {
+          _log('Force killing app…');
           component.onSendKey('Q');
           if (mounted) component.onBack();
           return true;

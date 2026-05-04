@@ -1,4 +1,4 @@
-enum LogLevel { info, warn, error }
+enum LogLevel { info, warn, error, system }
 
 /// A single line of output in the running screen log.
 class TuiLogLine {
@@ -9,4 +9,5 @@ class TuiLogLine {
 
   factory TuiLogLine.warn(String text) => TuiLogLine(text, level: LogLevel.warn);
   factory TuiLogLine.error(String text) => TuiLogLine(text, level: LogLevel.error);
+  factory TuiLogLine.system(String text) => TuiLogLine(text, level: LogLevel.system);
 }

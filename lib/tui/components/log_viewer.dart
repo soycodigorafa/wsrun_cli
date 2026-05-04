@@ -52,6 +52,7 @@ class _LogViewerState extends State<LogViewer> {
   Color _colorFor(LogLevel level) => switch (level) {
         LogLevel.warn => Colors.yellow,
         LogLevel.error => Colors.red,
+        LogLevel.system => Colors.brightCyan,
         LogLevel.info => Colors.white,
       };
 }
