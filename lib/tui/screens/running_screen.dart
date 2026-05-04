@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:nocterm/nocterm.dart';
 import '../models/tui_config.dart';
+import '../models/tui_detected_urls.dart';
 import '../models/tui_log_line.dart';
 import '../components/log_viewer.dart';
 import '../components/status_bar.dart';
@@ -10,16 +11,20 @@ class RunningScreen extends StatefulComponent {
   const RunningScreen({
     required this.config,
     required this.logStream,
+    required this.urlStream,
     required this.onSendKey,
     required this.onStop,
+    required this.onOpenUrl,
     required this.onBack,
     super.key,
   });
 
   final TuiConfig config;
   final Stream<TuiLogLine> logStream;
+  final Stream<TuiDetectedUrls> urlStream;
   final void Function(String key) onSendKey;
   final Future<void> Function() onStop;
+  final Future<void> Function(String url) onOpenUrl;
   final void Function() onBack;
 
   @override
@@ -28,24 +33,33 @@ class RunningScreen extends StatefulComponent {
 
 class _RunningScreenState extends State<RunningScreen> {
   final List<TuiLogLine> _lines = [];
-  StreamSubscription<TuiLogLine>? _sub;
+  StreamSubscription<TuiLogLine>? _logSub;
+  StreamSubscription<TuiDetectedUrls>? _urlSub;
   bool _running = true;
+  TuiDetectedUrls _urls = const TuiDetectedUrls();
 
   static const _maxLines = 300;
 
-  static const _hints = [
-    ('r', 'reload'),
-    ('R', 'restart'),
-    ('s', 'screenshot'),
-    ('p', 'perf'),
-    ('q', 'stop+back'),
-    ('Q', 'force kill'),
-  ];
+  List<(String, String)> get _hints {
+    final hints = <(String, String)>[
+      ('r', 'reload'),
+      ('R', 'restart'),
+      ('s', 'screenshot'),
+      ('p', 'perf'),
+    ];
+    if (_urls.devToolsUrl != null) hints.add(('d', 'devtools'));
+    if (_urls.webUrl != null) hints.add(('b', 'browser'));
+    hints.addAll([
+      ('q', 'stop+back'),
+      ('Q', 'force kill'),
+    ]);
+    return hints;
+  }
 
   @override
   void initState() {
     super.initState();
-    _sub = component.logStream.listen(
+    _logSub = component.logStream.listen(
       (line) {
         if (!mounted) return;
         setState(() {
@@ -61,11 +75,17 @@ class _RunningScreenState extends State<RunningScreen> {
         });
       },
     );
+
+    _urlSub = component.urlStream.listen((urls) {
+      if (!mounted) return;
+      setState(() => _urls = urls);
+    });
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
+    _logSub?.cancel();
+    _urlSub?.cancel();
     super.dispose();
   }
 
@@ -82,6 +102,14 @@ class _RunningScreenState extends State<RunningScreen> {
         if (char == 'R') { component.onSendKey('R'); return true; }
         if (char == 's') { component.onSendKey('s'); return true; }
         if (char == 'p') { component.onSendKey('p'); return true; }
+        if (char == 'd' && _urls.devToolsUrl != null) {
+          component.onOpenUrl(_urls.devToolsUrl!);
+          return true;
+        }
+        if (char == 'b' && _urls.webUrl != null) {
+          component.onOpenUrl(_urls.webUrl!);
+          return true;
+        }
         if (char == 'q') {
           component.onStop().then((_) { if (mounted) component.onBack(); });
           return true;
@@ -123,6 +151,14 @@ class _RunningScreenState extends State<RunningScreen> {
                 border: BoxBorder(bottom: BorderSide(color: Colors.brightBlack)),
               ),
             ),
+            if (_urls.hasAny) ...[
+              _UrlRow(urls: _urls),
+              Container(
+                decoration: BoxDecoration(
+                  border: BoxBorder(bottom: BorderSide(color: Colors.brightBlack)),
+                ),
+              ),
+            ],
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -141,6 +177,47 @@ class _RunningScreenState extends State<RunningScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Compact row showing detected URLs with their shortcut keys highlighted.
+class _UrlRow extends StatelessComponent {
+  const _UrlRow({required this.urls});
+  final TuiDetectedUrls urls;
+
+  @override
+  Component build(BuildContext context) {
+    final children = <Component>[
+      Text('  ', style: TextStyle(color: Colors.brightBlack)),
+    ];
+
+    if (urls.devToolsUrl != null) {
+      children.addAll([
+        Text('[d] ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightCyan)),
+        Text('DevTools ', style: TextStyle(color: Colors.brightBlack)),
+        Text(urls.devToolsUrl!, style: TextStyle(color: Colors.cyan)),
+        Text('   '),
+      ]);
+    }
+
+    if (urls.webUrl != null) {
+      children.addAll([
+        Text('[b] ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightCyan)),
+        Text('Web ', style: TextStyle(color: Colors.brightBlack)),
+        Text(urls.webUrl!, style: TextStyle(color: Colors.cyan)),
+      ]);
+    } else if (urls.vmServiceUrl != null && urls.devToolsUrl == null) {
+      children.addAll([
+        Text('[d] ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightCyan)),
+        Text('VM Service ', style: TextStyle(color: Colors.brightBlack)),
+        Text(urls.vmServiceUrl!, style: TextStyle(color: Colors.cyan)),
+      ]);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Row(children: children),
     );
   }
 }

@@ -47,8 +47,10 @@ class _AppShellState extends State<AppShell> {
       _AppScreen.running => RunningScreen(
           config: _activeConfig!,
           logStream: _activeHandle!.logStream,
+          urlStream: _activeHandle!.urlStream,
           onSendKey: _activeHandle!.sendKey,
           onStop: _activeHandle!.stop,
+          onOpenUrl: _activeHandle!.openUrl,
           onBack: _handleBackToPicker,
         ),
       _AppScreen.connect => ConnectScreen(

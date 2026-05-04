@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:path/path.dart' as p;
+import '../core/browser_launcher.dart';
 import '../core/devtools_detector.dart';
 import '../core/flutter_process.dart';
 import '../core/folder_resolver.dart';
@@ -10,6 +12,7 @@ import '../core/models/workspace_file.dart';
 import '../core/workspace_parser.dart';
 import 'models/tui_attach_target.dart';
 import 'models/tui_config.dart';
+import 'models/tui_detected_urls.dart';
 import 'models/tui_log_line.dart';
 import 'models/tui_process_handle.dart';
 import 'screens/app_shell.dart';
@@ -70,16 +73,29 @@ class TuiApp {
     await process.start();
 
     final detector = DevToolsDetector();
+    final urlController = StreamController<TuiDetectedUrls>.broadcast();
+
     final logStream = process.output.map((line) {
-      detector.feedLine(line);
+      if (detector.feedLine(line)) {
+        urlController.add(TuiDetectedUrls(
+          devToolsUrl: detector.devToolsUrl,
+          vmServiceUrl: detector.vmServiceUrl,
+          webUrl: detector.webUrl,
+        ));
+      }
       return _classifyLine(line);
     }).asBroadcastStream();
 
     return TuiProcessHandle(
       logStream: logStream,
+      urlStream: urlController.stream,
       sendKey: process.sendKey,
       stop: process.stop,
-      dispose: process.dispose,
+      dispose: () async {
+        await urlController.close();
+        await process.dispose();
+      },
+      openUrl: openInBrowser,
     );
   }
 
