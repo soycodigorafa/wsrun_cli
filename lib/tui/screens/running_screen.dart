@@ -1,159 +1,141 @@
 import 'dart:async';
-import 'dart:io';
-import '../components/box.dart';
-import '../components/log_tail.dart';
+import 'package:nocterm/nocterm.dart';
+import '../models/tui_config.dart';
+import '../models/tui_log_line.dart';
+import '../components/log_viewer.dart';
 import '../components/status_bar.dart';
-import '../input/key_events.dart';
-import '../input/raw_terminal.dart';
-import '../../core/devtools_detector.dart';
-import '../../core/flutter_process.dart';
-import '../../core/models/launch_config.dart';
 
-enum RunningResult { backToPicker, quit }
-
-class RunningScreen {
-  final LaunchConfig config;
-  final FlutterProcess process;
-  final RawTerminal terminal;
-
-  RunningScreen({
+class RunningScreen extends StatefulComponent {
+  const RunningScreen({
     required this.config,
-    required this.process,
-    required this.terminal,
+    required this.logStream,
+    required this.onSendKey,
+    required this.onStop,
+    required this.onBack,
+    super.key,
   });
+
+  final TuiConfig config;
+  final Stream<TuiLogLine> logStream;
+  final void Function(String key) onSendKey;
+  final Future<void> Function() onStop;
+  final void Function() onBack;
+
+  @override
+  State<RunningScreen> createState() => _RunningScreenState();
+}
+
+class _RunningScreenState extends State<RunningScreen> {
+  final List<TuiLogLine> _lines = [];
+  StreamSubscription<TuiLogLine>? _sub;
+  bool _running = true;
+
+  static const _maxLines = 300;
 
   static const _hints = [
     ('r', 'reload'),
     ('R', 'restart'),
-    ('d', 'DevTools'),
     ('s', 'screenshot'),
     ('p', 'perf'),
-    ('w', 'web'),
     ('q', 'stop+back'),
     ('Q', 'force kill'),
   ];
 
-  final _log = LogTail(maxLines: 300);
-  final _detector = DevToolsDetector();
-  bool _running = true;
-
-  Future<RunningResult> run() async {
-    terminal.hideCursor();
-
-    // Subscribe to process output.
-    final outputSub = process.output.listen((line) {
-      _log.addLine(line);
-      _detector.feedLine(line);
-      _render();
-    });
-
-    // Watch for process exit.
-    final exitCompleter = Completer<int>();
-    final exitSub = process.onExit.listen(exitCompleter.complete);
-
-    _render();
-
-    // Handle key input concurrently with process output.
-    final result = await _handleKeys(exitCompleter.future);
-
-    await outputSub.cancel();
-    await exitSub.cancel();
-
-    return result;
+  @override
+  void initState() {
+    super.initState();
+    _sub = component.logStream.listen(
+      (line) {
+        if (!mounted) return;
+        setState(() {
+          _lines.add(line);
+          if (_lines.length > _maxLines) _lines.removeAt(0);
+        });
+      },
+      onDone: () {
+        if (!mounted) return;
+        setState(() => _running = false);
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) component.onBack();
+        });
+      },
+    );
   }
 
-  Future<RunningResult> _handleKeys(Future<int> exitFuture) async {
-    final keyStream = keyEvents();
-    late StreamSubscription<KeyEvent> keySub;
-    final resultCompleter = Completer<RunningResult>();
-
-    exitFuture.then((_) {
-      if (!resultCompleter.isCompleted) {
-        _running = false;
-        _render();
-        // Auto-return to picker after process exits naturally.
-        resultCompleter.complete(RunningResult.backToPicker);
-      }
-    });
-
-    keySub = keyStream.listen((key) async {
-      if (resultCompleter.isCompleted) return;
-
-      switch (key) {
-        case CharKey(:final char) when char == 'r':
-          process.sendKey('r');
-        case CharKey(:final char) when char == 'R':
-          process.sendKey('R');
-        case CharKey(:final char) when char == 's':
-          process.sendKey('s');
-        case CharKey(:final char) when char == 'p':
-          process.sendKey('p');
-        case CharKey(:final char) when char == 'w':
-          final url = _detector.webUrl;
-          if (url != null) _openBrowser(url);
-        case CharKey(:final char) when char == 'd':
-          final url = _detector.devToolsUrl;
-          if (url != null) _openBrowser(url);
-        case CharKey(:final char) when char == 'q':
-          await process.stop();
-          if (!resultCompleter.isCompleted) {
-            resultCompleter.complete(RunningResult.backToPicker);
-          }
-        case CharKey(:final char) when char == 'Q':
-          process.kill();
-          if (!resultCompleter.isCompleted) {
-            resultCompleter.complete(RunningResult.backToPicker);
-          }
-        default:
-          break;
-      }
-    });
-
-    final result = await resultCompleter.future;
-    await keySub.cancel();
-    return result;
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
-  void _render() {
-    final width = terminal.terminalWidth.clamp(60, 120);
-    final maxRows = (terminal.terminalHeight - 8).clamp(4, 30);
-    final status = _running ? '\x1B[32m● RUNNING\x1B[0m' : '\x1B[31m● STOPPED\x1B[0m';
-    final title = '${config.name} ';
+  @override
+  Component build(BuildContext context) {
+    final statusColor = _running ? Colors.brightGreen : Colors.red;
+    final statusLabel = _running ? '● RUNNING' : '● STOPPED';
 
-    final cmdPreview = [process.executable, ...process.arguments].join(' ');
-
-    final lines = <String>[
-      '  $cmdPreview',
-      Box.divider(width),
-      ..._log.render(maxRows),
-      Box.divider(width),
-      '  ${StatusBar.render(_hints)}',
-    ];
-
-    terminal.clearScreen();
-    terminal.resetCursor();
-
-    for (final line in Box.render(
-      width: width,
-      lines: lines,
-      title: title,
-      statusRight: status,
-    )) {
-      print(line);
-    }
-  }
-
-  void _openBrowser(String url) {
-    final isLinux = Platform.isLinux;
-    final isMacOS = Platform.isMacOS;
-    final isWindows = Platform.isWindows;
-
-    if (isMacOS) {
-      Process.run('open', [url]);
-    } else if (isLinux) {
-      Process.run('xdg-open', [url]);
-    } else if (isWindows) {
-      Process.run('start', [url], runInShell: true);
-    }
+    return Focusable(
+      focused: true,
+      onKeyEvent: (event) {
+        final char = event.character;
+        if (char == 'r') { component.onSendKey('r'); return true; }
+        if (char == 'R') { component.onSendKey('R'); return true; }
+        if (char == 's') { component.onSendKey('s'); return true; }
+        if (char == 'p') { component.onSendKey('p'); return true; }
+        if (char == 'q') {
+          component.onStop().then((_) { if (mounted) component.onBack(); });
+          return true;
+        }
+        if (char == 'Q') {
+          component.onSendKey('Q');
+          if (mounted) component.onBack();
+          return true;
+        }
+        return false;
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          border: BoxBorder.all(color: Colors.brightBlack),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Row(
+                children: [
+                  Text(
+                    '  ${component.config.name}',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightWhite),
+                  ),
+                  Expanded(child: SizedBox()),
+                  Text(statusLabel, style: TextStyle(color: statusColor)),
+                  Text('  '),
+                ],
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                border: BoxBorder(bottom: BorderSide(color: Colors.brightBlack)),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: LogViewer(lines: _lines),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                border: BoxBorder(bottom: BorderSide(color: Colors.brightBlack)),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: StatusBar(hints: _hints),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -1,136 +1,164 @@
-import 'dart:async';
-import 'package:path/path.dart' as p;
-import '../components/box.dart';
-import '../components/list.dart';
+import 'package:nocterm/nocterm.dart';
+import '../models/tui_config.dart';
+import '../components/config_list.dart';
 import '../components/status_bar.dart';
-import '../input/key_events.dart';
-import '../input/raw_terminal.dart';
-import '../../core/models/launch_config.dart';
-import '../../core/models/workspace_file.dart';
+import '../inputs/filter_input.dart';
+import '../inputs/list_controller.dart';
 
-enum PickerResult { quit, runConfig, openAttach }
+class PickerScreen extends StatefulComponent {
+  const PickerScreen({
+    required this.configs,
+    required this.onSelect,
+    required this.onConnect,
+    required this.onQuit,
+    super.key,
+  });
 
-class PickerScreen {
-  final WorkspaceFile workspace;
-  final RawTerminal terminal;
+  final List<TuiConfig> configs;
+  final void Function(TuiConfig) onSelect;
+  final void Function() onConnect;
+  final void Function() onQuit;
 
-  PickerScreen({required this.workspace, required this.terminal});
+  @override
+  State<PickerScreen> createState() => _PickerScreenState();
+}
+
+class _PickerScreenState extends State<PickerScreen> {
+  final _list = ListController();
+  String _filter = '';
+  bool _filtering = false;
 
   static const _hints = [
     ('↑↓', 'navigate'),
     ('/', 'filter'),
-    ('ENTER', 'run'),
-    ('A', 'attach'),
-    ('Q', 'quit'),
+    ('enter', 'run'),
+    ('a', 'attach'),
+    ('q', 'quit'),
   ];
 
-  String _filter = '';
-  bool _filtering = false;
-
-  /// Shows the picker. Returns the selected [LaunchConfig] or null on quit.
-  Future<LaunchConfig?> run() async {
-    terminal.hideCursor();
-
-    while (true) {
-      final filtered = _applyFilter();
-      final list = ScrollableList(filtered.map((c) => c.name).toList());
-
-      // Render loop
-      final result = await _interact(list, filtered);
-
-      switch (result) {
-        case PickerResult.quit:
-          return null;
-        case PickerResult.runConfig:
-          return filtered[list.cursor];
-        case PickerResult.openAttach:
-          // Attach mode — caller handles this; return null for now.
-          return null;
-      }
-    }
-  }
-
-  Future<PickerResult> _interact(
-      ScrollableList list, List<LaunchConfig> filtered) async {
-    _render(list, filtered);
-
-    await for (final key in keyEvents()) {
-      if (_filtering) {
-        switch (key) {
-          case EscapeKey() || EnterKey():
-            _filtering = false;
-            terminal.showCursor();
-          case BackspaceKey():
-            if (_filter.isNotEmpty) {
-              _filter = _filter.substring(0, _filter.length - 1);
-            }
-          case CharKey(:final char):
-            _filter += char;
-          default:
-            break;
-        }
-        // Re-filter and rebuild list.
-        final newFiltered = _applyFilter();
-        final newList = ScrollableList(newFiltered.map((c) => c.name).toList());
-        _render(newList, newFiltered);
-        if (key is EnterKey) return PickerResult.runConfig;
-        continue;
-      }
-
-      switch (key) {
-        case ArrowUp():
-          list.moveUp();
-        case ArrowDown():
-          list.moveDown();
-        case EnterKey():
-          return PickerResult.runConfig;
-        case CharKey(:final char) when char == '/':
-          _filtering = true;
-          terminal.showCursor();
-        case CharKey(:final char) when char.toLowerCase() == 'a':
-          return PickerResult.openAttach;
-        case CharKey(:final char) when char.toUpperCase() == 'Q':
-          return PickerResult.quit;
-        default:
-          break;
-      }
-      _render(list, filtered);
-    }
-
-    return PickerResult.quit;
-  }
-
-  void _render(ScrollableList list, List<LaunchConfig> filtered) {
-    final width = terminal.terminalWidth.clamp(60, 120);
-    final maxRows = (terminal.terminalHeight - 8).clamp(4, 30);
-
-    terminal.clearScreen();
-    terminal.resetCursor();
-
-    final workspaceName = p.basenameWithoutExtension(workspace.filePath);
-    final title = '─ wsrun_cli ';
-    final configCount = '${workspace.configs.length} configs';
-
-    final lines = <String>[
-      '  📂  $workspaceName          $configCount',
-      Box.divider(width),
-      '  🔍  ${_filtering ? _filter + '█' : (_filter.isEmpty ? 'type to filter...' : _filter)}',
-      Box.divider(width),
-      ...list.render(maxRows),
-      Box.divider(width),
-      '  ${StatusBar.render(_hints)}',
-    ];
-
-    for (final line in Box.render(width: width, lines: lines, title: title)) {
-      print(line);
-    }
-  }
-
-  List<LaunchConfig> _applyFilter() {
-    if (_filter.isEmpty) return workspace.configs;
+  List<TuiConfig> get _filtered {
+    if (_filter.isEmpty) return component.configs;
     final lower = _filter.toLowerCase();
-    return workspace.configs
-        .where((c) => c.name.toLowerCase().contains(lower))
-        .toList();
+    return component.configs.where((c) => c.name.toLowerCase().contains(lower)).toList();
+  }
+
+  @override
+  Component build(BuildContext context) {
+    final filtered = _filtered;
+    _list.clamp(filtered.length);
+
+    const visibleRows = 12;
+    _list.updateOffset(visibleRows);
+
+    return Focusable(
+      focused: !_filtering,
+      onKeyEvent: (event) {
+        if (_filtering) return false;
+        if (event.logicalKey == LogicalKey.arrowUp) {
+          setState(() => _list.moveUp());
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.arrowDown) {
+          setState(() => _list.moveDown(filtered.length));
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.enter) {
+          if (filtered.isNotEmpty) component.onSelect(filtered[_list.cursor]);
+          return true;
+        }
+        final char = event.character?.toLowerCase();
+        if (char == '/') {
+          setState(() => _filtering = true);
+          return true;
+        }
+        if (char == 'a') {
+          component.onConnect();
+          return true;
+        }
+        if (char == 'q') {
+          component.onQuit();
+          return true;
+        }
+        return false;
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          border: BoxBorder.all(color: Colors.brightBlack),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _PickerHeader(
+              title: 'wsrun',
+              right: '${component.configs.length} configs',
+            ),
+            _Divider(),
+            FilterInput(
+              value: _filter,
+              active: _filtering,
+              onChanged: (v) => setState(() {
+                _filter = v;
+                _list.reset();
+              }),
+              onDone: () => setState(() => _filtering = false),
+            ),
+            _Divider(),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No configs match.',
+                        style: TextStyle(color: Colors.brightBlack),
+                      ),
+                    )
+                  : ConfigList(
+                      items: filtered.map((c) => c.name).toList(),
+                      selectedIndex: _list.cursor,
+                      scrollOffset: _list.offset,
+                      visibleRows: visibleRows,
+                    ),
+            ),
+            _Divider(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+              child: StatusBar(hints: _hints),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerHeader extends StatelessComponent {
+  const _PickerHeader({required this.title, required this.right});
+  final String title;
+  final String right;
+
+  @override
+  Component build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Row(
+        children: [
+          Text('  📂  $title', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightWhite)),
+          Expanded(child: SizedBox()),
+          Text(right, style: TextStyle(color: Colors.brightBlack)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Divider extends StatelessComponent {
+  const _Divider();
+
+  @override
+  Component build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: BoxBorder(bottom: BorderSide(color: Colors.brightBlack)),
+      ),
+    );
   }
 }
