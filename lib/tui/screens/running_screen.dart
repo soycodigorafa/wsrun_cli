@@ -90,6 +90,10 @@ class _RunningScreenState extends State<RunningScreen> {
           if (mounted) component.onBack();
           return true;
         }
+        if (event.modifiers.ctrl && event.logicalKey == LogicalKey.keyC) {
+          shutdownApp();
+          return true;
+        }
         return false;
       },
       child: Container(

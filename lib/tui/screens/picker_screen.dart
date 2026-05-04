@@ -79,6 +79,10 @@ class _PickerScreenState extends State<PickerScreen> {
           component.onQuit();
           return true;
         }
+        if (event.modifiers.ctrl && event.logicalKey == LogicalKey.keyC) {
+          shutdownApp();
+          return true;
+        }
         return false;
       },
       child: Container(

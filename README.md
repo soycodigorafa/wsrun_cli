@@ -44,6 +44,12 @@ Pass an explicit file with `-w`:
 wsrun -w path/to/my.code-workspace
 ```
 
+To run directly from source using the included sample fixture:
+
+```bash
+dart run bin/wsrun_cli.dart -w test/fixtures/sample.code-workspace
+```
+
 ---
 
 ## CLI Commands

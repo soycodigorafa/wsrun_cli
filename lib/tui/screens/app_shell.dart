@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import '../models/tui_config.dart';
 import '../models/tui_attach_target.dart';
@@ -91,5 +90,5 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void _handleQuit() => exit(0);
+  void _handleQuit() => shutdownApp();
 }
