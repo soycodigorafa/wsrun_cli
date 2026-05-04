@@ -4,6 +4,7 @@ import '../models/tui_attach_target.dart';
 import '../components/config_list.dart';
 import '../components/status_bar.dart';
 import '../inputs/list_controller.dart';
+import '../utils/string_utils.dart';
 
 class ConnectScreen extends StatefulComponent {
   const ConnectScreen({
@@ -129,7 +130,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
         return false;
       },
       child: ConfigList(
-        items: targets.map((t) => t.displayLine).toList(),
+        items: targets.map((t) => stripEmojis(t.displayLine)).toList(),
         selectedIndex: _list.cursor,
         scrollOffset: _list.offset,
         visibleRows: visibleRows,

@@ -4,6 +4,7 @@ import '../models/tui_config.dart';
 import '../models/tui_log_line.dart';
 import '../components/log_viewer.dart';
 import '../components/status_bar.dart';
+import '../utils/string_utils.dart';
 
 class RunningScreen extends StatefulComponent {
   const RunningScreen({
@@ -108,7 +109,7 @@ class _RunningScreenState extends State<RunningScreen> {
               child: Row(
                 children: [
                   Text(
-                    '  ${component.config.name}',
+                    '  ${stripEmojis(component.config.name)}',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brightWhite),
                   ),
                   Expanded(child: SizedBox()),

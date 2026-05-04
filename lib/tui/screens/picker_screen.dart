@@ -4,6 +4,7 @@ import '../components/config_list.dart';
 import '../components/status_bar.dart';
 import '../inputs/filter_input.dart';
 import '../inputs/list_controller.dart';
+import '../utils/string_utils.dart';
 
 class PickerScreen extends StatefulComponent {
   const PickerScreen({
@@ -116,7 +117,7 @@ class _PickerScreenState extends State<PickerScreen> {
                       ),
                     )
                   : ConfigList(
-                      items: filtered.map((c) => c.name).toList(),
+                      items: filtered.map((c) => stripEmojis(c.name)).toList(),
                       selectedIndex: _list.cursor,
                       scrollOffset: _list.offset,
                       visibleRows: visibleRows,
