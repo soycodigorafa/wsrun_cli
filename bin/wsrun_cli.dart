@@ -44,38 +44,46 @@ void main(List<String> arguments) async {
 
   final command = args.command;
 
-  if (command == null || command.name == null) {
-    // Default: interactive TUI
-    await TuiApp(
-      workingDirectory: cwd,
-      explicitWorkspacePath: workspacePath,
-    ).run();
-    return;
-  }
-
-  switch (command.name) {
-    case 'list':
-      await _cmdList(cwd, workspacePath);
-
-    case 'info':
-      await _cmdInfo(cwd, workspacePath);
-
-    case 'run':
-      final name = command.rest.isNotEmpty ? command.rest.join(' ') : null;
-      final indexStr = command['index'] as String?;
-      await _cmdRun(cwd, workspacePath, name: name, index: indexStr != null ? int.parse(indexStr) : null);
-
-    case 'attach':
-      // Open the TUI connect screen to attach to a running Flutter process.
+  try {
+    if (command == null || command.name == null) {
+      // Default: interactive TUI
       await TuiApp(
         workingDirectory: cwd,
         explicitWorkspacePath: workspacePath,
       ).run();
+      return;
+    }
 
-    default:
-      stderr.writeln('Unknown command: ${command.name}');
-      _printUsage(parser);
-      exit(1);
+    switch (command.name) {
+      case 'list':
+        await _cmdList(cwd, workspacePath);
+
+      case 'info':
+        await _cmdInfo(cwd, workspacePath);
+
+      case 'run':
+        final name = command.rest.isNotEmpty ? command.rest.join(' ') : null;
+        final indexStr = command['index'] as String?;
+        await _cmdRun(cwd, workspacePath, name: name, index: indexStr != null ? int.parse(indexStr) : null);
+
+      case 'attach':
+        // Open the TUI connect screen to attach to a running Flutter process.
+        await TuiApp(
+          workingDirectory: cwd,
+          explicitWorkspacePath: workspacePath,
+        ).run();
+
+      default:
+        stderr.writeln('Unknown command: ${command.name}');
+        _printUsage(parser);
+        exit(1);
+    }
+  } on StateError catch (e) {
+    stderr.writeln('error: ${e.message}');
+    exit(1);
+  } on FileSystemException catch (e) {
+    stderr.writeln('error: ${e.message}: ${e.path}');
+    exit(1);
   }
 }
 
