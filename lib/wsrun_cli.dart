@@ -8,3 +8,4 @@ export 'core/models/launch_config.dart';
 export 'core/models/workspace_file.dart';
 export 'core/models/workspace_folder.dart';
 export 'core/workspace_parser.dart';
+export 'core/zed_sync.dart';

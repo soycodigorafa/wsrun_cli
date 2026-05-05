@@ -61,6 +61,7 @@ wsrun run "app_alpha STG"                     # run by config name
 wsrun run --index 0                           # run by index
 wsrun attach                                  # open connect screen for running processes
 wsrun info                                    # show parsed workspace summary
+wsrun zed                                     # generate .zed/debug.json for Zed IDE
 wsrun --workspace path/to.code-workspace      # explicit workspace file path
 ```
 
@@ -228,7 +229,47 @@ dependencies:
 
 ---
 
-## Roadmap
+## Zed Integration
+
+`wsrun zed` generates a `.zed/debug.json` from your `.code-workspace` launch configs so Zed's built-in DAP debugger can drive them — **no duplication, single source of truth**.
+
+```bash
+cd your-monorepo/
+wsrun zed
+```
+
+Output:
+
+```
+  ✓  Generated .zed/debug.json  (3 configs)
+
+     • app_alpha STG   [flutter]
+     • app_alpha PROD  [flutter]
+     • app_beta STG    [flutter]
+
+  ⚠  widgetbook — skipped (no program field)
+```
+
+Then in Zed press **F4** (or `debugger: start`) and pick a config. Breakpoints, variable inspection, and step-through all work through Zed's DAP panel.
+
+### How it translates configs
+
+| `.code-workspace` | `.zed/debug.json` | Notes |
+|---|---|---|
+| `name` | `label` | direct |
+| `type` | `type` | `"dart"` → auto-promoted to `"flutter"` if a `pubspec.yaml` with Flutter is found in the resolved `cwd` |
+| `program` | `program` | kept as-is (relative to `cwd`) |
+| `args` | `args` | direct |
+| `cwd` (`${workspaceFolder:X}`) | `cwd` | resolved to absolute path |
+| *(injected)* | `adapter: "Dart"` | required by Zed's Dart extension |
+
+### Re-generate after changes
+
+Run `wsrun zed` again any time you add or modify launch configs. You can add `.zed/debug.json` to `.gitignore` to keep it out of version control since it contains absolute paths.
+
+---
+
+
 
 | Version | Scope |
 |---------|-------|

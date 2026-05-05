@@ -3,6 +3,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 import '../lib/core/workspace_parser.dart';
 import '../lib/core/folder_resolver.dart';
+import '../lib/core/zed_sync.dart';
 import '../lib/tui/tui_app.dart';
 
 void main(List<String> arguments) async {
@@ -23,7 +24,8 @@ void main(List<String> arguments) async {
     ..addCommand('run', runParser)
     ..addCommand('list')
     ..addCommand('info')
-    ..addCommand('attach');
+    ..addCommand('attach')
+    ..addCommand('zed');
 
   ArgResults args;
   try {
@@ -72,6 +74,9 @@ void main(List<String> arguments) async {
           workingDirectory: cwd,
           explicitWorkspacePath: workspacePath,
         ).run();
+
+      case 'zed':
+        await _cmdZed(cwd, workspacePath);
 
       default:
         stderr.writeln('Unknown command: ${command.name}');
@@ -158,17 +163,41 @@ Future<void> _cmdRun(String cwd, String? workspacePath,
   exit(exitCode);
 }
 
+Future<void> _cmdZed(String cwd, String? workspacePath) async {
+  final path = await WorkspaceParser.findWorkspaceFile(cwd, explicitPath: workspacePath);
+  final workspace = WorkspaceParser.parse(path);
+  final sync = ZedSync(workspace);
+
+  final skipped = <String>[];
+  final outPath = sync.write(skipped: skipped);
+  final configs = sync.toZedConfigs();
+
+  print('\n  ✓  Generated ${p.relative(outPath, from: cwd)}  (${configs.length} configs)\n');
+  for (final c in configs) {
+    print('     • ${c['label']}  [${c['type']}]');
+  }
+  if (skipped.isNotEmpty) {
+    print('');
+    for (final name in skipped) {
+      print('  ⚠  $name — skipped (no program field)');
+    }
+  }
+  print('');
+}
+
 void _printUsage(ArgParser parser) {
   print('''
 wsrun — Run VS Code workspace launch configs from any terminal.
 
 Usage:
-  wsrun                           Interactive TUI picker (default)
-  wsrun list                      Print all launch configs
-  wsrun run "Config Name"         Run by name
-  wsrun run --index 0             Run by index
-  wsrun attach                    Connect to a running Flutter process
-  wsrun info                      Show workspace summary
+  wsrun                                         Interactive TUI picker (default)
+  wsrun list                                    Print all launch configs
+  wsrun run "app_alpha STG"                     Run by name
+  wsrun run --index 0                           Run by index
+  wsrun attach                                  Connect to a running Flutter process
+  wsrun info                                    Show workspace summary
+  wsrun zed                                     Generate .zed/debug.json for Zed IDE
+  wsrun --workspace path/to.code-workspace      Explicit workspace file path
 
 Options:
 ${parser.usage}
