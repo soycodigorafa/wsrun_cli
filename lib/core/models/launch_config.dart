@@ -5,6 +5,7 @@ class LaunchConfig {
   final String? program;
   final List<String> args;
   final String type;
+  final String request;
 
   const LaunchConfig({
     required this.name,
@@ -12,6 +13,7 @@ class LaunchConfig {
     this.program,
     this.args = const [],
     this.type = 'dart',
+    this.request = 'launch',
   });
 
   factory LaunchConfig.fromJson(Map<String, dynamic> json) {
@@ -21,6 +23,7 @@ class LaunchConfig {
       program: json['program'] as String?,
       args: (json['args'] as List<dynamic>?)?.cast<String>() ?? [],
       type: json['type'] as String? ?? 'dart',
+      request: json['request'] as String? ?? 'launch',
     );
   }
 

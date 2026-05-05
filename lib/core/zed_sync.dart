@@ -40,6 +40,7 @@ class ZedSync {
       final entry = <String, dynamic>{
         'label': config.name,
         'adapter': 'Dart',
+        'request': config.request,
         'type': effectiveType,
         'program': config.program!,
         'cwd': resolvedCwd,
