@@ -48,9 +48,6 @@ class _PickerScreenState extends State<PickerScreen> {
     final filtered = _filtered;
     _list.clamp(filtered.length);
 
-    const visibleRows = 12;
-    _list.updateOffset(visibleRows);
-
     return Focusable(
       focused: !_filtering,
       onKeyEvent: (event) {
@@ -109,19 +106,28 @@ class _PickerScreenState extends State<PickerScreen> {
             ),
             _Divider(),
             Expanded(
-              child: filtered.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No configs match.',
-                        style: TextStyle(color: Colors.brightBlack),
-                      ),
-                    )
-                  : ConfigList(
-                      items: filtered.map((c) => stripEmojis(c.name)).toList(),
-                      selectedIndex: _list.cursor,
-                      scrollOffset: _list.offset,
-                      visibleRows: visibleRows,
-                    ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final visibleRows =
+                      constraints.maxHeight.isFinite && constraints.maxHeight > 0
+                          ? constraints.maxHeight.toInt()
+                          : 12;
+                  _list.updateOffset(visibleRows);
+                  return filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No configs match.',
+                            style: TextStyle(color: Colors.brightBlack),
+                          ),
+                        )
+                      : ConfigList(
+                          items: filtered.map((c) => stripEmojis(c.name)).toList(),
+                          selectedIndex: _list.cursor,
+                          scrollOffset: _list.offset,
+                          visibleRows: visibleRows,
+                        );
+                },
+              ),
             ),
             _Divider(),
             Container(
