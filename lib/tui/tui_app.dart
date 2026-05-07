@@ -10,6 +10,7 @@ import '../core/folder_resolver.dart';
 import '../core/models/launch_config.dart';
 import '../core/models/workspace_file.dart';
 import '../core/workspace_parser.dart';
+import '../core/zed_sync.dart';
 import 'models/tui_attach_target.dart';
 import 'models/tui_config.dart';
 import 'models/tui_detected_urls.dart';
@@ -74,13 +75,27 @@ class TuiApp {
 
     final detector = DevToolsDetector();
     final urlController = StreamController<TuiDetectedUrls>.broadcast();
+    var attachWritten = false;
 
     final logStream = process.output.map((line) {
       if (detector.feedLine(line)) {
+        String? attachPath;
+        if (!attachWritten &&
+            detector.vmServiceUrl != null &&
+            config.program != null) {
+          attachWritten = true;
+          attachPath = ZedSync(workspace).writeAttach(
+            label: config.name,
+            resolvedCwd: cwd,
+            program: config.program!,
+            vmServiceUri: detector.vmServiceUrl!,
+          );
+        }
         urlController.add(TuiDetectedUrls(
           devToolsUrl: detector.devToolsUrl,
           vmServiceUrl: detector.vmServiceUrl,
           webUrl: detector.webUrl,
+          zedAttachPath: attachPath,
         ));
       }
       return _classifyLine(line);
@@ -92,6 +107,7 @@ class TuiApp {
       sendKey: process.sendKey,
       stop: process.stop,
       dispose: () async {
+        ZedSync(workspace).clearAttach();
         await urlController.close();
         await process.dispose();
       },

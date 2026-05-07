@@ -79,6 +79,9 @@ class _RunningScreenState extends State<RunningScreen> {
     _urlSub = component.urlStream.listen((urls) {
       if (!mounted) return;
       setState(() => _urls = urls);
+      if (urls.zedAttachPath != null) {
+        _log('🔗 Zed attach ready — press F4 in Zed to connect the debugger');
+      }
     });
   }
 

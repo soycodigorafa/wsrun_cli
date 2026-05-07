@@ -6,6 +6,23 @@ import '../lib/core/folder_resolver.dart';
 import '../lib/core/zed_sync.dart';
 import '../lib/tui/tui_app.dart';
 
+/// Reads the version from the package's own pubspec.yaml at runtime so it
+/// always stays in sync with the published version without duplication.
+String _readVersion() {
+  try {
+    final scriptDir = p.dirname(Platform.script.toFilePath());
+    final pubspecFile = File(p.join(scriptDir, '..', 'pubspec.yaml'));
+    final line = pubspecFile
+        .readAsLinesSync()
+        .firstWhere((l) => l.startsWith('version:'));
+    return line.split(':').last.trim();
+  } catch (_) {
+    return 'unknown';
+  }
+}
+
+final _version = _readVersion();
+
 void main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption(
@@ -13,7 +30,8 @@ void main(List<String> arguments) async {
       abbr: 'w',
       help: 'Path to a .code-workspace file.',
     )
-    ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage.');
+    ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage.')
+    ..addFlag('version', abbr: 'v', negatable: false, help: 'Print version.');
 
   // Sub-commands
   final runParser = ArgParser()
@@ -38,6 +56,11 @@ void main(List<String> arguments) async {
 
   if (args['help'] as bool) {
     _printUsage(parser);
+    return;
+  }
+
+  if (args['version'] as bool) {
+    print('wsrun $_version');
     return;
   }
 
@@ -187,7 +210,7 @@ Future<void> _cmdZed(String cwd, String? workspacePath) async {
 
 void _printUsage(ArgParser parser) {
   print('''
-wsrun — Run VS Code workspace launch configs from any terminal.
+wsrun $_version — Run VS Code workspace launch configs from any terminal.
 
 Usage:
   wsrun                                         Interactive TUI picker (default)
@@ -198,6 +221,7 @@ Usage:
   wsrun info                                    Show workspace summary
   wsrun zed                                     Generate .zed/debug.json for Zed IDE
   wsrun --workspace path/to.code-workspace      Explicit workspace file path
+  wsrun --version                               Print version
 
 Options:
 ${parser.usage}

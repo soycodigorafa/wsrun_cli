@@ -72,6 +72,54 @@ class ZedSync {
     return outPath;
   }
 
+  /// Writes a live attach config to `.zed/debug.json` when a running VM service
+  /// URI is available. Called by TuiApp once DevToolsDetector fires a vmServiceUrl.
+  ///
+  /// [label]         — the LaunchConfig name (e.g. "app_alpha STG")
+  /// [resolvedCwd]   — absolute path to the project (already resolved via FolderResolver)
+  /// [program]       — entrypoint file from the LaunchConfig (e.g. "lib/main.dart")
+  /// [vmServiceUri]  — the ws:// or http:// URI printed by flutter run
+  ///
+  /// Returns the written file path.
+  String writeAttach({
+    required String label,
+    required String resolvedCwd,
+    required String program,
+    required String vmServiceUri,
+  }) {
+    final workspaceDir = p.dirname(workspace.filePath);
+    final zedDir = Directory(p.join(workspaceDir, '.zed'));
+    if (!zedDir.existsSync()) zedDir.createSync();
+
+    final outPath = p.join(zedDir.path, 'debug.json');
+
+    final entry = <String, dynamic>{
+      'label': '$label (attached)',
+      'adapter': 'Dart',
+      'request': 'attach',
+      'type': 'flutter',
+      'cwd': resolvedCwd,
+      'program': program,
+      'vmServiceUri': vmServiceUri,
+    };
+
+    const encoder = JsonEncoder.withIndent('  ');
+    File(outPath).writeAsStringSync(encoder.convert([entry]));
+
+    return outPath;
+  }
+
+  /// Clears the `.zed/debug.json` attach config when the process exits,
+  /// so Zed doesn't show a stale attach entry.
+  void clearAttach() {
+    final workspaceDir = p.dirname(workspace.filePath);
+    final outPath = p.join(workspaceDir, '.zed', 'debug.json');
+    final file = File(outPath);
+    if (file.existsSync()) {
+      file.writeAsStringSync('[]');
+    }
+  }
+
   /// Returns true if [projectDir] contains a `pubspec.yaml` that references
   /// the Flutter SDK or the flutter package — i.e. it is a Flutter project.
   static bool _isFlutterProject(String projectDir) {
