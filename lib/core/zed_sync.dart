@@ -100,7 +100,7 @@ class ZedSync {
       'type': 'flutter',
       'cwd': resolvedCwd,
       'program': program,
-      'vmServiceUri': vmServiceUri,
+      'vmServiceUri': _toWsUri(vmServiceUri),
     };
 
     const encoder = JsonEncoder.withIndent('  ');
@@ -118,6 +118,27 @@ class ZedSync {
     if (file.existsSync()) {
       file.writeAsStringSync('[]');
     }
+  }
+
+  /// Converts an HTTP VM service URI to the WebSocket form expected by the
+  /// Dart DAP adapter (`ws://host:port/auth=/ws`).
+  ///
+  /// Flutter prints `http://127.0.0.1:PORT/AUTH=/`. Zed's Dart adapter needs
+  /// `ws://127.0.0.1:PORT/AUTH=/ws`; if you pass an `http://` URI the adapter
+  /// appends `/ws` but keeps the `http://` scheme, which makes Dart's HTTP
+  /// client send a plain GET instead of a WebSocket upgrade — resulting in
+  /// "Connection closed before full header was received".
+  static String _toWsUri(String uri) {
+    var result = uri.trim();
+    if (result.startsWith('https://')) {
+      result = 'wss://${result.substring('https://'.length)}';
+    } else if (result.startsWith('http://')) {
+      result = 'ws://${result.substring('http://'.length)}';
+    }
+    if (!result.endsWith('/ws')) {
+      result = result.endsWith('/') ? '${result}ws' : '$result/ws';
+    }
+    return result;
   }
 
   /// Returns true if [projectDir] contains a `pubspec.yaml` that references
