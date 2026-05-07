@@ -1,6 +1,6 @@
 name: wsrun_cli
 description: Run VS Code workspace launch configurations from any terminal. Flutter-first TUI.
-version: 0.4.3
+version: 0.4.4
 homepage: https://github.com/soycodigorafa/wsrun_cli
 
 environment:
