@@ -13,27 +13,40 @@ class AppShell extends StatefulComponent {
   const AppShell({
     required this.configs,
     required this.onRunConfig,
+    required this.onAttachTarget,
     required this.onScanTargets,
+    this.startOnConnect = false,
     super.key,
   });
 
   final List<TuiConfig> configs;
 
-  /// Called when user picks a config. Returns a [TuiProcessHandle] with the
-  /// live log stream and process controls.
+  /// Called when user picks a config to launch. Returns a [TuiProcessHandle].
   final Future<TuiProcessHandle> Function(TuiConfig config) onRunConfig;
+
+  /// Called when user selects a running process to attach to. Returns a [TuiProcessHandle].
+  final Future<TuiProcessHandle> Function(TuiAttachTarget target) onAttachTarget;
 
   /// Called when the connect screen needs to scan for running processes.
   final Future<List<TuiAttachTarget>> Function() onScanTargets;
+
+  /// When true the shell starts on the connect screen instead of the picker.
+  final bool startOnConnect;
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
-  _AppScreen _screen = _AppScreen.picker;
+  late _AppScreen _screen;
   TuiConfig? _activeConfig;
   TuiProcessHandle? _activeHandle;
+
+  @override
+  void initState() {
+    super.initState();
+    _screen = component.startOnConnect ? _AppScreen.connect : _AppScreen.picker;
+  }
 
   @override
   Component build(BuildContext context) {
@@ -78,9 +91,17 @@ class _AppShellState extends State<AppShell> {
     setState(() => _screen = _AppScreen.connect);
   }
 
-  void _handleTargetSelect(TuiAttachTarget target) {
-    // Attach flow wired in integration layer — return to picker for now.
-    _handleBackToPicker();
+  void _handleTargetSelect(TuiAttachTarget target) async {
+    final handle = await component.onAttachTarget(target);
+    if (!mounted) {
+      await handle.dispose();
+      return;
+    }
+    setState(() {
+      _activeConfig = TuiConfig(name: target.name, type: 'flutter');
+      _activeHandle = handle;
+      _screen = _AppScreen.running;
+    });
   }
 
   void _handleBackToPicker() {

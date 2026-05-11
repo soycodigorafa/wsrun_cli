@@ -26,10 +26,14 @@ class TuiApp {
   TuiApp({
     required this.workingDirectory,
     this.explicitWorkspacePath,
+    this.startOnConnect = false,
   });
 
   final String workingDirectory;
   final String? explicitWorkspacePath;
+
+  /// When true the TUI opens directly on the connect/attach screen.
+  final bool startOnConnect;
 
   Future<void> run() async {
     final workspacePath = await WorkspaceParser.findWorkspaceFile(
@@ -47,7 +51,9 @@ class TuiApp {
       AppShell(
         configs: configs,
         onRunConfig: (tuiConfig) => _startProcess(workspace, tuiConfig),
+        onAttachTarget: _attachProcess,
         onScanTargets: _scanTargets,
+        startOnConnect: startOnConnect,
       ),
     );
   }
@@ -122,6 +128,53 @@ class TuiApp {
       return 'flutter';
     }
     return 'dart';
+  }
+
+  /// Attaches to an already-running Flutter process identified by [target].
+  ///
+  /// Runs `flutter attach --vm-service-uri=<uri>` so the user gets full
+  /// hot-reload / hot-restart / screenshot support just like a normal run.
+  Future<TuiProcessHandle> _attachProcess(TuiAttachTarget target) async {
+    final args = ['attach'];
+    if (target.vmServiceUri != null) {
+      args.add('--vm-service-uri=${target.vmServiceUri}');
+    } else {
+      args.addAll(['--app-id', target.name]);
+    }
+
+    final process = FlutterProcess(
+      executable: 'flutter',
+      arguments: args,
+      workingDirectory: workingDirectory,
+    );
+
+    await process.start();
+
+    final detector = DevToolsDetector();
+    final urlController = StreamController<TuiDetectedUrls>.broadcast();
+
+    final logStream = process.output.map((line) {
+      if (detector.feedLine(line)) {
+        urlController.add(TuiDetectedUrls(
+          devToolsUrl: detector.devToolsUrl,
+          vmServiceUrl: detector.vmServiceUrl,
+          webUrl: detector.webUrl,
+        ));
+      }
+      return _classifyLine(line);
+    }).asBroadcastStream();
+
+    return TuiProcessHandle(
+      logStream: logStream,
+      urlStream: urlController.stream,
+      sendKey: process.sendKey,
+      stop: process.stop,
+      dispose: () async {
+        await urlController.close();
+        await process.dispose();
+      },
+      openUrl: openInBrowser,
+    );
   }
 
   TuiLogLine _classifyLine(String line) {

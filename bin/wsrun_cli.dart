@@ -92,10 +92,11 @@ void main(List<String> arguments) async {
         await _cmdRun(cwd, workspacePath, name: name, index: indexStr != null ? int.parse(indexStr) : null);
 
       case 'attach':
-        // Open the TUI connect screen to attach to a running Flutter process.
+        // Open the TUI directly on the connect screen to attach to a running Flutter process.
         await TuiApp(
           workingDirectory: cwd,
           explicitWorkspacePath: workspacePath,
+          startOnConnect: true,
         ).run();
 
       case 'zed':
