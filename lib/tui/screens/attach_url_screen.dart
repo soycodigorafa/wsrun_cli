@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import '../models/tui_attach_target.dart';
 import '../components/status_bar.dart';
@@ -30,11 +31,37 @@ class _AttachUrlScreenState extends State<AttachUrlScreen> {
   bool _loading = false;
 
   static const _hints = [
+    ('ctrl+v', 'paste'),
     ('enter', 'confirm'),
     ('esc', 'back'),
   ];
 
   String get _folder => component.target.folderName ?? '';
+
+  /// Reads text from the system clipboard and appends it to [_input].
+  ///
+  /// Uses `pbpaste` on macOS and `xclip` / `xsel` / `wl-paste` on Linux.
+  void _pasteFromClipboard() async {
+    try {
+      ProcessResult result;
+      if (Platform.isMacOS) {
+        result = await Process.run('pbpaste', []);
+      } else if (Platform.isLinux) {
+        // Try common Linux clipboard tools in order.
+        result = await Process.run('xclip', ['-o', '-selection', 'clipboard'])
+            .catchError((_) => Process.run('xsel', ['--clipboard', '--output']))
+            .catchError((_) => Process.run('wl-paste', ['--no-newline']));
+      } else {
+        return;
+      }
+      final text = (result.stdout as String).trim();
+      if (text.isNotEmpty && mounted) {
+        setState(() => _input += text);
+      }
+    } catch (_) {
+      // Clipboard unavailable — do nothing.
+    }
+  }
 
   @override
   Component build(BuildContext context) {
@@ -115,7 +142,11 @@ class _AttachUrlScreenState extends State<AttachUrlScreen> {
           component.onSubmit(url);
           return true;
         }
-        if (event.logicalKey == LogicalKey.escape) {
+        if (event.modifiers.ctrl && event.logicalKey == LogicalKey.keyV) {
+                  _pasteFromClipboard();
+                  return true;
+                }
+                if (event.logicalKey == LogicalKey.escape) {
           component.onBack();
           return true;
         }
