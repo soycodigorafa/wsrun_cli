@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:path/path.dart' as p;
@@ -35,6 +34,8 @@ class TuiApp {
   /// When true the TUI opens directly on the connect/attach screen.
   final bool startOnConnect;
 
+  WorkspaceFile? _workspace;
+
   Future<void> run() async {
     final workspacePath = await WorkspaceParser.findWorkspaceFile(
       workingDirectory,
@@ -42,6 +43,7 @@ class TuiApp {
       onChoose: _chooseWorkspace,
     );
     final workspace = WorkspaceParser.parse(workspacePath);
+    _workspace = workspace;
 
     final configs = workspace.configs
         .map((c) => TuiConfig(name: c.name, type: c.type))
@@ -132,20 +134,21 @@ class TuiApp {
 
   /// Attaches to an already-running Flutter process identified by [target].
   ///
-  /// Runs `flutter attach --vm-service-uri=<uri>` so the user gets full
-  /// hot-reload / hot-restart / screenshot support just like a normal run.
-  Future<TuiProcessHandle> _attachProcess(TuiAttachTarget target) async {
+  /// Runs `flutter attach [--debug-url <url>]` in the config's resolved working
+  /// directory so Flutter finds the right process.  When [debugUrl] is null,
+  /// Flutter auto-scans for a running process from that directory.
+  Future<TuiProcessHandle> _attachProcess(TuiAttachTarget target, String? debugUrl) async {
     final args = ['attach'];
-    if (target.vmServiceUri != null) {
-      args.add('--vm-service-uri=${target.vmServiceUri}');
-    } else {
-      args.addAll(['--app-id', target.name]);
+    if (debugUrl != null) {
+      args.add('--debug-url=$debugUrl');
     }
+
+    final cwd = target.workingDirectory ?? workingDirectory;
 
     final process = FlutterProcess(
       executable: 'flutter',
       arguments: args,
-      workingDirectory: workingDirectory,
+      workingDirectory: cwd,
     );
 
     await process.start();
@@ -191,34 +194,25 @@ class TuiApp {
   // ---------------------------------------------------------------------------
   // Connect / attach scanning
 
+  /// Builds the attach target list from the workspace configs.
+  ///
+  /// Each config becomes one entry carrying its resolved working directory.
+  /// This replaces the unreliable `flutter attach --list` mDNS scan.
   Future<List<TuiAttachTarget>> _scanTargets() async {
-    try {
-      final result = await Process.run(
-        'flutter',
-        ['attach', '--list'],
-        stdoutEncoding: utf8,
-        stderrEncoding: utf8,
-      );
-      return _parseFlutterAttachList(result.stdout as String);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  List<TuiAttachTarget> _parseFlutterAttachList(String output) {
+    final workspace = _workspace;
+    if (workspace == null) return [];
+    final resolver = FolderResolver(workspace);
     final targets = <TuiAttachTarget>[];
-    for (final line in output.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('No ')) continue;
-      final parts = trimmed.split(RegExp(r'\s{2,}'));
-      if (parts.length >= 2) {
-        final pid = int.tryParse(parts[0]) ?? 0;
+    for (final config in workspace.configs) {
+      try {
+        final cwd = resolver.resolveCwd(config.cwd);
         targets.add(TuiAttachTarget(
-          pid: pid,
-          name: parts.length > 1 ? parts[1] : trimmed,
-          device: parts.length > 2 ? parts[2] : null,
-          vmServiceUri: parts.length > 3 ? parts[3] : null,
+          pid: 0,
+          name: config.name,
+          workingDirectory: cwd,
         ));
+      } catch (_) {
+        // Skip configs whose workspaceFolder reference can't be resolved.
       }
     }
     return targets;

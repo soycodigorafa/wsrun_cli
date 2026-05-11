@@ -5,10 +5,11 @@ import '../models/tui_process_handle.dart';
 import 'picker_screen.dart';
 import 'running_screen.dart';
 import 'connect_screen.dart';
+import 'attach_url_screen.dart';
 
-enum _AppScreen { picker, running, connect }
+enum _AppScreen { picker, running, connect, urlPrompt }
 
-/// Root component. Owns screen state and routes between picker, running, and connect.
+/// Root component. Owns screen state and routes between picker, running, connect, and urlPrompt.
 class AppShell extends StatefulComponent {
   const AppShell({
     required this.configs,
@@ -25,7 +26,8 @@ class AppShell extends StatefulComponent {
   final Future<TuiProcessHandle> Function(TuiConfig config) onRunConfig;
 
   /// Called when user selects a running process to attach to. Returns a [TuiProcessHandle].
-  final Future<TuiProcessHandle> Function(TuiAttachTarget target) onAttachTarget;
+  /// [debugUrl] is the ws:// URL entered by the user, or null to auto-scan.
+  final Future<TuiProcessHandle> Function(TuiAttachTarget target, String? debugUrl) onAttachTarget;
 
   /// Called when the connect screen needs to scan for running processes.
   final Future<List<TuiAttachTarget>> Function() onScanTargets;
@@ -41,6 +43,7 @@ class _AppShellState extends State<AppShell> {
   late _AppScreen _screen;
   TuiConfig? _activeConfig;
   TuiProcessHandle? _activeHandle;
+  TuiAttachTarget? _pendingTarget;
 
   @override
   void initState() {
@@ -71,6 +74,11 @@ class _AppShellState extends State<AppShell> {
           onSelect: _handleTargetSelect,
           onBack: _handleBackToPicker,
         ),
+      _AppScreen.urlPrompt => AttachUrlScreen(
+          target: _pendingTarget!,
+          onSubmit: _handleUrlSubmit,
+          onBack: () => setState(() => _screen = _AppScreen.connect),
+        ),
     };
   }
 
@@ -91,16 +99,24 @@ class _AppShellState extends State<AppShell> {
     setState(() => _screen = _AppScreen.connect);
   }
 
-  void _handleTargetSelect(TuiAttachTarget target) async {
-    final handle = await component.onAttachTarget(target);
+  void _handleTargetSelect(TuiAttachTarget target) {
+    setState(() {
+      _pendingTarget = target;
+      _screen = _AppScreen.urlPrompt;
+    });
+  }
+
+  void _handleUrlSubmit(String? url) async {
+    final handle = await component.onAttachTarget(_pendingTarget!, url);
     if (!mounted) {
       await handle.dispose();
       return;
     }
     setState(() {
-      _activeConfig = TuiConfig(name: target.name, type: 'flutter');
+      _activeConfig = TuiConfig(name: _pendingTarget!.name, type: 'flutter');
       _activeHandle = handle;
       _screen = _AppScreen.running;
+      _pendingTarget = null;
     });
   }
 
@@ -110,6 +126,7 @@ class _AppShellState extends State<AppShell> {
       _screen = _AppScreen.picker;
       _activeConfig = null;
       _activeHandle = null;
+      _pendingTarget = null;
     });
   }
 
