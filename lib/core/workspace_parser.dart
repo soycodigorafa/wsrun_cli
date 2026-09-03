@@ -47,7 +47,7 @@ class WorkspaceParser {
   /// Parses a `.code-workspace` file at [filePath] into a [WorkspaceFile].
   static WorkspaceFile parse(String filePath) {
     final raw = File(filePath).readAsStringSync();
-    final json = _stripComments(raw);
+    final json = _stripTrailingCommas(_stripComments(raw));
     final Map<String, dynamic> data =
         jsonDecode(json) as Map<String, dynamic>;
 
@@ -76,6 +76,11 @@ class WorkspaceParser {
   /// Public test-only access to comment stripping logic.
   // ignore: prefer_constructors_over_static_methods
   static String stripCommentsForTest(String source) => _stripComments(source);
+
+  /// Public test-only access to trailing comma stripping logic.
+  // ignore: prefer_constructors_over_static_methods
+  static String stripTrailingCommasForTest(String source) =>
+      _stripTrailingCommas(source);
 
   /// Strips `//` line comments and `/* */` block comments from JSON text.
   static String _stripComments(String source) {
@@ -129,4 +134,54 @@ class WorkspaceParser {
 
     return buf.toString();
   }
+
+  /// Strips trailing commas before `}` or `]`, which VS Code's JSONC allows
+  /// but Dart's [jsonDecode] rejects. Expects comments already stripped, so
+  /// only whitespace can separate a comma from its closing bracket.
+  static String _stripTrailingCommas(String source) {
+    final buf = StringBuffer();
+    var i = 0;
+    final len = source.length;
+
+    while (i < len) {
+      if (source[i] == '"') {
+        buf.write('"');
+        i++;
+        while (i < len) {
+          if (source[i] == '\\' && i + 1 < len) {
+            buf.write(source[i]);
+            buf.write(source[i + 1]);
+            i += 2;
+          } else if (source[i] == '"') {
+            buf.write('"');
+            i++;
+            break;
+          } else {
+            buf.write(source[i]);
+            i++;
+          }
+        }
+        continue;
+      }
+
+      if (source[i] == ',') {
+        var j = i + 1;
+        while (j < len && _isJsonWhitespace(source[j])) {
+          j++;
+        }
+        if (j < len && (source[j] == '}' || source[j] == ']')) {
+          i++;
+          continue;
+        }
+      }
+
+      buf.write(source[i]);
+      i++;
+    }
+
+    return buf.toString();
+  }
+
+  static bool _isJsonWhitespace(String ch) =>
+      ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
 }

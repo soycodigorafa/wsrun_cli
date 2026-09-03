@@ -4,6 +4,11 @@ import 'dart:io';
 
 /// Manages a running `flutter` (or `dart`) child process.
 class FlutterProcess {
+  FlutterProcess({
+    required this.executable,
+    required this.arguments,
+    required this.workingDirectory,
+  });
   final String executable;
   final List<String> arguments;
   final String workingDirectory;
@@ -12,12 +17,6 @@ class FlutterProcess {
   Process? _process;
   final _outputController = StreamController<String>.broadcast();
   final _exitController = StreamController<int>.broadcast();
-
-  FlutterProcess({
-    required this.executable,
-    required this.arguments,
-    required this.workingDirectory,
-  });
 
   /// Broadcast stream of stdout+stderr lines.
   Stream<String> get output => _outputController.stream;
@@ -35,7 +34,6 @@ class FlutterProcess {
       executable,
       arguments,
       workingDirectory: workingDirectory,
-      runInShell: false,
     );
 
     // Merge stdout and stderr into the output stream.
@@ -94,7 +92,7 @@ class FlutterProcess {
 
   /// Force-kills the process tree.
   void kill() {
-    _process?.kill(ProcessSignal.sigterm);
+    _process?.kill();
     _process = null;
   }
 

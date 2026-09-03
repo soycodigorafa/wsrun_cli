@@ -39,6 +39,32 @@ void main() {
     });
   });
 
+  group('WorkspaceParser._stripTrailingCommas', () {
+    test('strips trailing comma before closing brace', () {
+      const input = '{ "a": 1, }';
+      final stripped = WorkspaceParser.stripTrailingCommasForTest(input);
+      expect(stripped, equals('{ "a": 1 }'));
+    });
+
+    test('strips trailing comma before closing bracket', () {
+      const input = '[1, 2, ]';
+      final stripped = WorkspaceParser.stripTrailingCommasForTest(input);
+      expect(stripped, equals('[1, 2 ]'));
+    });
+
+    test('preserves commas inside strings', () {
+      const input = r'{ "a": "x, }" }';
+      final stripped = WorkspaceParser.stripTrailingCommasForTest(input);
+      expect(stripped, equals(input));
+    });
+
+    test('leaves non-trailing commas untouched', () {
+      const input = '{ "a": 1, "b": 2 }';
+      final stripped = WorkspaceParser.stripTrailingCommasForTest(input);
+      expect(stripped, equals(input));
+    });
+  });
+
   group('WorkspaceParser.parse', () {
     late final workspace = WorkspaceParser.parse(fixturePath);
 
